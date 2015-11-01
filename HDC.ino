@@ -3,10 +3,12 @@
 #define tempoLeitura 600000 // 10 minutos
 #define tempoLoop 10 // 10 milisegundos (Tempo para disparo do loop)
 
+int tempoBombaLigada; // Variavel que indica o tempo em que a bomba ficara ligada
 int loopsAteLeitura; //Variavel contador de loops para executar leitura
 int contadorLoops = 0; // Variavel para contar quantos loops foram executados
-
-//int matrizLinha;
+boolean estadoPrograma = false; // Booleana que diz em qual estado esta o programa
+                                // Caso falso = Aguardando o tempo para a leitura
+                                // Caso verdadeiro = Aguardando o termino da bomba
 
 void setup()
 {
@@ -20,52 +22,76 @@ void setup()
 void loop()
 {
   
-  if (contadorLoops++ >= loopsAteLeitura)
+  if (estadoPrograma == false && contadorLoops++ >= loopsAteLeitura)
   {
     contadorLoops = 0;
     executarLeitura();
+    estadoPrograma == true;
+  }
+  else if (estadoPrograma == true && contadorLoops++ <= tempoBombaLigada)
+  {
+    if (contadorLoops == 0)
+    {
+      digitalWrite(pinoBomba, HIGH); //bomba ligada
+    }
+    else if (contadorLoops == tempoBombaLigada)
+    {
+      digitalWrite(pinoBomba, LOW); //bomba desligada
+      estadoPrograma = false;
+    }
   }
 }
 
 void executarLeitura()
-
-void matrizValores()
 {
+  int sinalAmpTerra = 0; //Valor recebido pelo amplificador de sinal da resistencia da terra
+  sinalAmpTerra = analogRead(pinoAmpTerra);
+  matrizValores(sinalAmpTerra);
+}  
+
+void matrizValores(int sinalAmpTerra)
+{
+  int verificador;
+  tempoBombaLigada = 0;
+  int contadorMLinha = 0;
   // X = Faixa Inicio
   // Y = Faixa Fim
   // Z = Tempo de execucao da bomba
   
-  //                          X   Y   Z     X    Y   Z     X    Y   Z     X     Y   Z
-  matrizFaixaTempo[3][2] = { {0, 256, 1}, {257, 512, 2}, {513, 768, 3}, {514, 1024, 4} };
+  //                            X   Y   Z
+ int matrizFaixaTempo[][3] = { {0, 256, 0}, {257, 512, 0}, {513, 768, 1}, {514, 1024, 2} };
+ 
+ do
+ {
+    for (int contadorMColuna = 0; contadorMColuna <= 1; contadorMColuna++)
+      {
+       // matrizFaixaTempo[contadorMLinha][contadorMColuna];
+        if (contadorMColuna == 0 && sinalAmpTerra >= matrizFaixaTempo[contadorMLinha][contadorMColuna])
+        {
+          verificador = 0;
+        }
+        if (contadorMColuna == 1 && sinalAmpTerra <= matrizFaixaTempo[contadorMLinha][contadorMColuna])
+        {
+          verificador = 1;
+          switch (contadorMLinha)
+          {
+            case 0:
+              tempoBombaLigada = matrizFaixaTempo[0][2]*60000;
+              break;
+            case 1:
+              tempoBombaLigada = matrizFaixaTempo[1][2]*60000;
+              break;
+            case 2:
+              tempoBombaLigada = matrizFaixaTempo[2][2]*60000;
+              break;
+            case 3:
+              tempoBombaLigada = matrizFaixaTempo[3][2]*60000;
+              break;
+          }
+        }
+      }
+    contadorMLinha++;
+ } 
+ while(verificador != 1);
 }
-
-
-/*
-{
-  int sinalAmpTerra = 0; //Valor recebido pelo amplificador de sinal da resistencia da terra
-  
-  sinalAmpTerra = analogRead(pinoAmpTerra);
-  if (sinalAmpTerra >= 768 && sinalAmpTerra <= 1024)
-  {
-    digitalWrite(pinoBomba, HIGH);
-    //DEFINIR DELAY 100%
-  }
-  else if (sinalAmpTerra >= 512 && sinalAmpTerra <= 767)
-  {
-    digitalWrite(pinoBomba, HIGH);
-    //DEFINIR DELAY 75%
-  }
-  else if (sinalAmpTerra >= 256 && sinalAmpTerra <= 511)
-  {
-    digitalWrite(pinoBomba, HIGH);
-    //DEFINIR DELAY 50%
-  }
-  else
-  {
-    digitalWrite(pinoBomba, HIGH);
-    //DEFINIR DELAY 25%
-  }
-  
-}
-*/  
  
