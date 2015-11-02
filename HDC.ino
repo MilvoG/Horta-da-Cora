@@ -1,15 +1,16 @@
-#define pinoAmpTerra A0 // pino do Amplificador de Sinal relacionado a resistencia da Terra
-#define pinoBomba 2 // pino da Bomba
+#define PINO_ADC_SENSOR_TERRA A0 // pino do Amplificador de Sinal relacionado a resistencia da Terra
+#define PINO_BOMBA 3 // pino da Bomba
 #define TEMPO_LEITURA_SENSOR_TERRA 30000 // 1 minuto
 //#define tempoLeitura 600000 // 10 minutos
 #define tempoLoop 10 // 10 milisegundos (Tempo para disparo do loop)
 
-int tempoBombaLigada = 0; // Vari avel que indica o tempo em que a bomba ficara ligada
+long tempoBombaLigada = 0; // Vari avel que indica o tempo em que a bomba ficara ligada (milisegundos)
 int loopsAteLeitura = 0; //Variavel contador de loops para executar leitura
 long contadorLoops = 0; // Variavel para contar quantos loops foram executados
 
 long horaAgora = 0;
 long horaUltimaLeitura = 0;
+long horaBombaLigada = 0;
 
 enum ESTADO_PROGRAMA{
   ESTADO_AGUARDANDO_LEITURA_SENSOR, //Aguardando o tempo para a leitura
@@ -23,15 +24,14 @@ void setup()
   Serial.begin(9600);
   Serial.print("\nO Winston esta sendo inicializado...");
   
-  pinMode(pinoAmpTerra, INPUT);
-  pinMode(pinoBomba, OUTPUT);
-
-  // Calculo de quantos loops serao necessarios para executar leitura
-  //loopsAteLeitura = tempoLeitura/tempoLoop;
+  pinMode(PINO_ADC_SENSOR_TERRA, INPUT);
+  pinMode(PINO_BOMBA, OUTPUT);
 
   // Define estado inicial
   estadoPrograma = ESTADO_AGUARDANDO_LEITURA_SENSOR;
 
+
+  analogWrite(PINO_BOMBA, 0);
   // Obtém o time atual
   horaAgora = millis();
 
@@ -46,46 +46,49 @@ void loop()
   // Operações enquanto esta aguardando tempo para ler o sensor
   if (estadoPrograma == ESTADO_AGUARDANDO_LEITURA_SENSOR){
 
-      // Verifica se já passou o tempo necessário desde a última leitura do sensor
+      // Verifica se já passou o tempo necessário desde a última leitura do sensor de umidade terra
       if( (horaAgora - horaUltimaLeitura) >= TEMPO_LEITURA_SENSOR_TERRA){
 
-        executarLeitura();
-        
-        horaUltimaLeitura = millis();
+       int adcSensorTerra = leituraADCSensorTerra();
 
-        //Serial.print("\nUltima leitura do sensor de umidade as ");
-        //Serial.print(millisParaStringHora(loopsAteLeitura));
+       long millisLigarBomba = tempoLigarBomba(adcSensorTerra);
+
+        if(millisLigarBomba > 0){
+            Serial.print("\nLigando bomba por ");
+            Serial.print(millisLigarBomba/60000);
+            Serial.print(" minutos.");
+        
+            analogWrite(PINO_BOMBA, 130);
+            
+            horaBombaLigada = millis();
+            
+            tempoBombaLigada = millisLigarBomba;
+            
+            estadoPrograma = ESTADO_AGUARDANDO_BOMBA_LIGADA;
+        }else{
+          Serial.print("\nNao precisa ligar essa porra.");
+        }    
+        
+        horaUltimaLeitura = millis();        
       }
   
   }
-
-  /*
-  if (estadoPrograma == ESTADO_AGUARDANDO_LEITURA_SENSOR && contadorLoops++ >= loopsAteLeitura)
-  {
-    Serial.println("Estado de leitura.");
-    contadorLoops = 0;
-    executarLeitura();
-    estadoPrograma = ESTADO_AGUARDANDO_BOMBA_LIGADA;
+  
+  // Operações enquanto esta aguardando tempo para desligar bomba
+  if (estadoPrograma == ESTADO_AGUARDANDO_BOMBA_LIGADA){
+   
+   if((millis() - horaBombaLigada) >= tempoBombaLigada){     
+     
+     Serial.print("\nDesligando bomba!");
+     
+     analogWrite(PINO_BOMBA, 0);
+                 
+     horaUltimaLeitura = millis(); 
+     
+     estadoPrograma = ESTADO_AGUARDANDO_LEITURA_SENSOR;
+   }
+    
   }
-  if (estadoPrograma == ESTADO_AGUARDANDO_BOMBA_LIGADA && contadorLoops++ <= tempoBombaLigada)
-  {
-    int contadorB = 0;
-    Serial.print("O tempo da bomba ligada corresponde a: ");
-    Serial.println(tempoBombaLigada);
-    Serial.println(contadorLoops);
-    if (contadorB == 0)
-    {
-      Serial.println("Bomba ligada.");
-      digitalWrite(pinoBomba, HIGH); //bomba ligada
-    }
-    if (contadorLoops == tempoBombaLigada)
-    {
-      Serial.println("Bomba desligada.");
-      digitalWrite(pinoBomba, LOW); //bomba desligada
-      estadoPrograma = ESTADO_AGUARDANDO_LEITURA_SENSOR;
-    }
-    contadorB = 1;
-  }*/
 }
 
 char* millisParaStringHora(long millisHora){
@@ -109,18 +112,18 @@ char* millisParaStringHora(long millisHora){
     return hora;
 }
 
-void executarLeitura()
+int leituraADCSensorTerra()
 {
   // Leitura do ADC (Analogic to Digital Converter) do sensor de umidade da terra
-  int adcSensorTerra = analogRead(pinoAmpTerra);
+  int adcSensorTerra = analogRead(PINO_ADC_SENSOR_TERRA  );
 
   Serial.print("\nValor lido do sensor de umidade: ");
   Serial.print(adcSensorTerra);
   
- //matrizValores (adcSensorTerra);
+  return adcSensorTerra;
 }  
 
-void matrizValores(int adcSensorTerra)
+long tempoLigarBomba(int adcSensorTerra)
 {
   int verificador;
   tempoBombaLigada = 0;
@@ -130,40 +133,22 @@ void matrizValores(int adcSensorTerra)
   // Z = Tempo de execucao da bomba
   
   //                            X   Y   Z
- int matrizFaixaTempo[][3] = { {0, 256, 0}, {257, 512, 0}, {513, 768, 1}, {514, 800, 2} };
+ int matrizFaixaTempo[][3] = { {0, 256, 1}, {257, 512, 2}, {513, 768, 3}, {514, 1024, 4} };
 
-int matrizTamanho = sizeof(matrizFaixaTempo);
+ int matrizTamanho = sizeof(matrizFaixaTempo); 
  
- do
- {
-    for (int contadorMColuna = 0; contadorMColuna <= 1; contadorMColuna++)
-      {
-       // matrizFaixaTempo[contadorMLinha][contadorMColuna];
-        if (contadorMColuna == 0 && adcSensorTerra >= matrizFaixaTempo[contadorMLinha][contadorMColuna])
-        {
-          verificador = 0;
-        }
-        if (contadorMColuna == 1 && adcSensorTerra <= matrizFaixaTempo[contadorMLinha][contadorMColuna])
-        {
-          verificador = 1;
-          switch (contadorMLinha)
-          {
-            case 0:
-              tempoBombaLigada = matrizFaixaTempo[0][2]*60000;
-              break;
-            case 1:
-              tempoBombaLigada = matrizFaixaTempo[1][2]*60000;
-              break;
-            case 2:
-              tempoBombaLigada = matrizFaixaTempo[2][2]*60000;
-              break;
-            case 3:
-              tempoBombaLigada = matrizFaixaTempo[3][2]*60000;
-              break;
-          }
-        }
-      }
-    contadorMLinha++;
+ for(int indexVetor = 0; indexVetor <  matrizTamanho; indexVetor++){
+ 
+   int* itemFaixaTempo = matrizFaixaTempo[indexVetor];
+   
+   int valorMinimo = itemFaixaTempo[0];
+   int valorMaximo = itemFaixaTempo[1];
+   
+   if(adcSensorTerra >= valorMinimo && adcSensorTerra <= valorMaximo){    
+     tempoBombaLigada = itemFaixaTempo[2] * 60000;     
+     return tempoBombaLigada;   
+   } 
+   
  } 
- while(verificador != 1);
+ return 0;
 }
