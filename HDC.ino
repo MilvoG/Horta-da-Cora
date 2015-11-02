@@ -3,12 +3,13 @@
 #define tempoLeitura 600000 // 10 minutos
 #define tempoLoop 10 // 10 milisegundos (Tempo para disparo do loop)
 
-int tempoBombaLigada; // Variavel que indica o tempo em que a bomba ficara ligada
+int tempoBombaLigada; // Vari avel que indica o tempo em que a bomba ficara ligada
 int loopsAteLeitura; //Variavel contador de loops para executar leitura
 int contadorLoops = 0; // Variavel para contar quantos loops foram executados
-boolean estadoPrograma = false; // Booleana que diz em qual estado esta o programa
-                                // Caso falso = Aguardando o tempo para a leitura
-                                // Caso verdadeiro = Aguardando o termino da bomba
+
+char estadoPrograma = 'a'; // Booleana que diz em qual estado esta o programa
+                        // Caso a = Aguardando o tempo para a leitura
+                        // Caso b = Aguardando o termino da bomba
 
 void setup()
 {
@@ -22,13 +23,13 @@ void setup()
 void loop()
 {
   
-  if (estadoPrograma == false && contadorLoops++ >= loopsAteLeitura)
+  if (estadoPrograma == 'a' && contadorLoops++ >= loopsAteLeitura)
   {
     contadorLoops = 0;
     executarLeitura();
-    estadoPrograma == true;
+    estadoPrograma = 'b';
   }
-  else if (estadoPrograma == true && contadorLoops++ <= tempoBombaLigada)
+  else if (estadoPrograma == 'b' && contadorLoops++ <= tempoBombaLigada)
   {
     if (contadorLoops == 0)
     {
@@ -37,7 +38,7 @@ void loop()
     else if (contadorLoops == tempoBombaLigada)
     {
       digitalWrite(pinoBomba, LOW); //bomba desligada
-      estadoPrograma = false;
+      estadoPrograma = 'a';
     }
   }
 }
@@ -94,4 +95,3 @@ void matrizValores(int sinalAmpTerra)
  } 
  while(verificador != 1);
 }
- 
