@@ -91,25 +91,35 @@ void loop()
   }
 }
 
-char* millisParaStringHora(long millisHora){
-  
-    int horas = ((millisHora / 1000) / 60) / 60;    
+/*
+ * Converte milisegundos para horas formatada no padrão HH:mm:ss
+ */
+String millisParaStringHora(long millisTempo) {
+  // Calcula quantos segundos no tempo recebido
+  long segundosTempo = millisTempo / 1000L;
 
-    //Retira a parte de horas
-    millisHora = millisHora - (horas * 3600000);
-    
-    int minutos = (millisHora / 1000) / 60;
+  // Obtém a parte de horas
+  int horas = (int)((segundosTempo / 60L) / 60L);
 
-    // Retira a parte de minutos
-    millisHora = millisHora - (minutos * 60000);
-    
-    int segundos = millisHora / 1000;
+  //Retira a parte de horas
+  segundosTempo -= (horas * 3600L);
 
-    char hora[8];
+  //Obtém a parte de minutos
+  int minutos = (int)(segundosTempo / 60L);
 
-    sprintf(hora, "%02d:%02d:%02d", horas, minutos, segundos);
-    
-    return hora;
+  // Retira a parte de minutos
+  segundosTempo -= minutos * 60L;
+
+  //Obtém a parte de segundos
+  int segundos = (int)segundosTempo;
+
+  //Vetor para armazenar a hora formatada
+  char charTempo[9];
+
+  //Format a hora
+  sprintf(charTempo, "%02d:%02d:%02d", (int)horas, (int)minutos, (int)segundos);
+
+  return String(charTempo);
 }
 
 int leituraADCSensorTerra()
